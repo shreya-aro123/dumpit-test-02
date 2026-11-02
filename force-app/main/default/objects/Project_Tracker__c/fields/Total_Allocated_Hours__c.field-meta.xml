@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Total_Allocated_Hours__c</fullName>
+    <label>Total Allocated Hours</label>
+    <summarizedField>Project_Member__c.Allocated_Hours__c</summarizedField>
+    <summaryForeignKey>Project_Member__c.Project_Tracker__c</summaryForeignKey>
+    <summaryOperation>sum</summaryOperation>
+    <trackTrending>false</trackTrending>
+    <type>Summary</type>
+</CustomField>
