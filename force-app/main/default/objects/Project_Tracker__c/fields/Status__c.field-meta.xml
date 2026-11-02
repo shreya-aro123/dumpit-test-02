@@ -30,8 +30,14 @@
                 <label>Completed</label>
             </value>
             <value>
+                <fullName>Archived</fullName>
+                <default>false</default>
+                <label>Archived</label>
+            </value>
+            <value>
                 <fullName>Cancelled</fullName>
                 <default>false</default>
+                <isActive>false</isActive>
                 <label>Cancelled</label>
             </value>
         </valueSetDefinition>
