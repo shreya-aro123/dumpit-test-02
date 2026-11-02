@@ -1,0 +1,19 @@
+<template>
+    <lightning-card title="Financial & Allocation Dashboard" icon-name="custom:custom17">
+        <div class="slds-var-p-around_medium">
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading details..."></lightning-spinner>
+            </template>
+            <template if:true={projectDetails}>
+                <div class="slds-grid slds-gutters slds-var-m-bottom_medium">
+                    <div class="slds-col">
+                        <span><strong>Budget:</strong> {projectDetails.Budget__c}</span>
+                    </div>
+                    <div class="slds-col">
+                        <span><strong>Total Allocated Hours:</strong> {projectDetails.Total_Allocated_Hours__c}</span>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>
