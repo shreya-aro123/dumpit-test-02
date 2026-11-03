@@ -1,0 +1,12 @@
+<html>
+<head>
+    <title>Test Email</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 20px;">
+    <h2>Deployment Validation Test Email</h2>
+    <p>Hello {!Contact.FirstName},</p>
+    <p>This is a custom HTML email template generated to validate deployments and messaging components in the target org.</p>
+    <br/>
+    <p>Regards,<br/><strong>Salesforce Deployment Assist</strong></p>
+</body>
+</html>

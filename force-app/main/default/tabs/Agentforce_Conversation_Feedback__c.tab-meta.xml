@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customObject>true</customObject>
+    <description>Stores customer feedback submitted after an Agentforce conversation. This object is used to record Satisfaction level and reason for it.</description>
+    <motif>Custom53: Bell</motif>
+</CustomTab>

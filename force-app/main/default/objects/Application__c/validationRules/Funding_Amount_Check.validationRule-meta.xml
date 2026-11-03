@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Funding_Amount_Check</fullName>
+    <active>true</active>
+    <description>Validates that total funding amount is populated when application stage is under review</description>
+    <errorConditionFormula>AND(ISPICKVAL(Application_Stage__c, &quot;Under Review&quot;), ISBLANK(Total_Funding_Amount__c))</errorConditionFormula>
+    <errorDisplayField>Total_Funding_Amount__c</errorDisplayField>
+    <errorMessage>Total Funding Amount is required when status is Under Review.</errorMessage>
+</ValidationRule>
