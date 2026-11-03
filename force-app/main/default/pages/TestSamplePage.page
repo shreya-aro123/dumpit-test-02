@@ -1,0 +1,5 @@
+<apex:page controller="TestSampleController" lightningStylesheets="true">
+    <apex:pageBlock title="Access Test Page">
+        <apex:outputText value="{!welcomeMessage}"/>
+    </apex:pageBlock>
+</apex:page>

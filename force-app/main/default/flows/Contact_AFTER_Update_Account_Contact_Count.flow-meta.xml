@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>60.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Increment_New_Account_Count</name>
+        <label>Increment New Account Count</label>
+        <locationX>176</locationX>
+        <locationY>950</locationY>
+        <assignmentItems>
+            <assignToReference>varN_NewAccountContactCount</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_New_Account_Contacts</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>Increment_Old_Account_Count</name>
+        <label>Increment Old Account Count</label>
+        <locationX>176</locationX>
+        <locationY>450</locationY>
+        <assignmentItems>
+            <assignToReference>varN_OldAccountContactCount</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Old_Account_Contacts</targetReference>
+        </connector>
+    </assignments>
+    <decisions>
+        <description>True on create with an Account, or on update when AccountId is populated - that Account&apos;s count needs to be recalculated.</description>
+        <name>Decision_New_Account_Gained_Contact</name>
+        <label>Does the Contact Have an Account Now?</label>
+        <locationX>50</locationX>
+        <locationY>650</locationY>
+        <defaultConnectorLabel>No - No Current Account</defaultConnectorLabel>
+        <rules>
+            <name>New_Account_Exists</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.AccountId</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_New_Account_Contacts</targetReference>
+            </connector>
+            <label>Yes - Has Account</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>True only on an update where AccountId changed away from a previous, non-null Account - that Account&apos;s count needs to be recalculated.</description>
+        <name>Decision_Old_Account_Lost_Contact</name>
+        <label>Did the Contact Leave an Account?</label>
+        <locationX>50</locationX>
+        <locationY>150</locationY>
+        <defaultConnector>
+            <targetReference>Decision_New_Account_Gained_Contact</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No - No Prior Account Lost</defaultConnectorLabel>
+        <rules>
+            <name>Old_Account_Lost_Contact</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record__Prior.AccountId</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.AccountId</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <elementReference>$Record.AccountId</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_Old_Account_Contacts</targetReference>
+            </connector>
+            <label>Yes - Old Account Lost Contact</label>
+        </rules>
+    </decisions>
+    <description>Triggers when a Contact is created, or when its AccountId changes. Recalculates the related-Contacts count on both the old Account (if the Contact moved off it) and the new/current Account, writing the total to Account.Number_of_Contacts__c. Companion flow: Contact - BEFORE - Update Account Contact Count handles the delete side.</description>
+    <interviewLabel>Contact - AFTER - Update Account Contact Count {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Contact - AFTER - Update Account Contact Count</label>
+    <loops>
+        <description>Tallies the count in a variable only. No Get/Create/Update/Delete Records inside this loop.</description>
+        <name>Loop_New_Account_Contacts</name>
+        <label>Loop Through New Account&apos;s Contacts</label>
+        <locationX>176</locationX>
+        <locationY>850</locationY>
+        <collectionReference>Get_New_Account_Contacts</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Increment_New_Account_Count</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Update_New_Account</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <loops>
+        <description>Tallies the count in a variable only. No Get/Create/Update/Delete Records inside this loop.</description>
+        <name>Loop_Old_Account_Contacts</name>
+        <label>Loop Through Old Account&apos;s Contacts</label>
+        <locationX>176</locationX>
+        <locationY>350</locationY>
+        <collectionReference>Get_Old_Account_Contacts</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Increment_Old_Account_Count</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Update_Old_Account</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <description>Single bulk-safe query for every Contact on the Contact&apos;s current Account.</description>
+        <name>Get_New_Account_Contacts</name>
+        <label>Get New Account&apos;s Contacts</label>
+        <locationX>176</locationX>
+        <locationY>750</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_New_Account_Contacts</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>AccountId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.AccountId</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Contact</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <description>Single bulk-safe query for every Contact still on the Contact&apos;s previous Account.</description>
+        <name>Get_Old_Account_Contacts</name>
+        <label>Get Old Account&apos;s Contacts</label>
+        <locationX>176</locationX>
+        <locationY>250</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_Old_Account_Contacts</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>AccountId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record__Prior.AccountId</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Contact</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordUpdates>
+        <description>Writes the recalculated total to the Contact&apos;s current Account.</description>
+        <name>Update_New_Account</name>
+        <label>Update New Account</label>
+        <locationX>176</locationX>
+        <locationY>1050</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.AccountId</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Number_of_Contacts__c</field>
+            <value>
+                <elementReference>varN_NewAccountContactCount</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Account</object>
+    </recordUpdates>
+    <recordUpdates>
+        <description>Writes the recalculated total to the Account the Contact just left.</description>
+        <name>Update_Old_Account</name>
+        <label>Update Old Account</label>
+        <locationX>176</locationX>
+        <locationY>550</locationY>
+        <connector>
+            <targetReference>Decision_New_Account_Gained_Contact</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record__Prior.AccountId</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Number_of_Contacts__c</field>
+            <value>
+                <elementReference>varN_OldAccountContactCount</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Account</object>
+    </recordUpdates>
+    <start>
+        <locationX>50</locationX>
+        <locationY>50</locationY>
+        <connector>
+            <targetReference>Decision_Old_Account_Lost_Contact</targetReference>
+        </connector>
+        <filterFormula>ISNEW() || ISCHANGED({!$Record.AccountId})</filterFormula>
+        <object>Contact</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Draft</status>
+    <variables>
+        <name>varN_NewAccountContactCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+    <variables>
+        <name>varN_OldAccountContactCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+</Flow>

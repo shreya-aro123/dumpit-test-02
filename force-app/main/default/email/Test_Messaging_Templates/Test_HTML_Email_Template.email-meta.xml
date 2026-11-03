@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <description>Test HTML Email Template for Deployment Validation</description>
+    <encodingKey>UTF-8</encodingKey>
+    <name>Test HTML Email Template</name>
+    <style>freeForm</style>
+    <subject>Deployment Validation Notification - {!Opportunity.Name}</subject>
+    <type>custom</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

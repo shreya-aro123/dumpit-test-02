@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>60.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Increment_Contact_Count</name>
+        <label>Increment Contact Count</label>
+        <locationX>176</locationX>
+        <locationY>350</locationY>
+        <assignmentItems>
+            <assignToReference>varN_ContactCount</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Through_Contacts</targetReference>
+        </connector>
+    </assignments>
+    <description>Triggers before a Contact with an Account is deleted. Salesforce only supports before-delete for record-triggered flows, and the Contact being deleted still exists at this point, so the raw related-Contacts count is taken and reduced by 1 (floored at 0) before writing back to Account.Number_of_Contacts__c. Companion flow: Contact - AFTER - Update Account Contact Count handles the create/reparent side.</description>
+    <formulas>
+        <name>varF_AdjustedCount</name>
+        <dataType>Number</dataType>
+        <expression>MAX(0, {!varN_ContactCount} - 1)</expression>
+        <scale>0</scale>
+    </formulas>
+    <interviewLabel>Contact - BEFORE - Update Account Contact Count {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Contact - BEFORE - Update Account Contact Count</label>
+    <loops>
+        <description>Tallies the count in a variable only. No Get/Create/Update/Delete Records inside this loop, per bulkification best practice.</description>
+        <name>Loop_Through_Contacts</name>
+        <label>Loop Through Contacts</label>
+        <locationX>176</locationX>
+        <locationY>250</locationY>
+        <collectionReference>Get_Related_Contacts</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Increment_Contact_Count</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Update_Account</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <description>Single bulk-safe query for every Contact currently on this Account, including the one about to be deleted (before-delete context still sees it).</description>
+        <name>Get_Related_Contacts</name>
+        <label>Get Related Contacts</label>
+        <locationX>176</locationX>
+        <locationY>150</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_Through_Contacts</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>AccountId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.AccountId</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Contact</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordUpdates>
+        <description>Single Update Records element, outside the loop, writing the deletion-adjusted (count - 1, floored at 0) total.</description>
+        <name>Update_Account</name>
+        <label>Update Account</label>
+        <locationX>176</locationX>
+        <locationY>458</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.AccountId</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Number_of_Contacts__c</field>
+            <value>
+                <elementReference>varF_AdjustedCount</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Account</object>
+    </recordUpdates>
+    <start>
+        <locationX>50</locationX>
+        <locationY>50</locationY>
+        <connector>
+            <targetReference>Get_Related_Contacts</targetReference>
+        </connector>
+        <filterFormula>NOT(ISBLANK({!$Record.AccountId}))</filterFormula>
+        <object>Contact</object>
+        <recordTriggerType>Delete</recordTriggerType>
+        <triggerType>RecordBeforeDelete</triggerType>
+    </start>
+    <status>Draft</status>
+    <variables>
+        <name>varN_ContactCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+</Flow>
