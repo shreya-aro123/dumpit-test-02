@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSetGroup xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Test permission set group aggregating test permission sets.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Test Permission Set Group</label>
+    <permissionSets>Test_Permission_Set</permissionSets>
+    <status>Updated</status>
+</PermissionSetGroup>

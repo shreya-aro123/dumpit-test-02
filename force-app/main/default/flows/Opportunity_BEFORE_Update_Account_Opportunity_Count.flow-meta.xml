@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <description>Adds 1 to the Account&apos;s running Opportunity count.</description>
+        <name>Increment_Account_Count</name>
+        <label>Increment Account Count</label>
+        <locationX>176</locationX>
+        <locationY>350</locationY>
+        <assignmentItems>
+            <assignToReference>varN_AccountOpportunityCount</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Account_Opportunities</targetReference>
+        </connector>
+    </assignments>
+    <description>Triggers before an Opportunity with an Account is deleted (entry criteria on Start: AccountId is not null). Salesforce only supports before-delete for record-triggered flows, and the Opportunity being deleted still exists at this point, so the raw related-Opportunity count is taken and reduced by 1 (floored at 0) before writing back to Account.Number_of_Opportunities__c. Fault handling: a before-delete flow cannot update the Opportunity being deleted, so the Opportunity.Description fault path used by the AFTER flow is not possible here; a fault in this flow fails the delete with the flow error. Known limit: if several Opportunities on the same Account are deleted in one transaction, each interview subtracts only 1. Companion flow: Opportunity - AFTER - Update Account Opportunity Count handles create/reparent.</description>
+    <formulas>
+        <description>Raw count minus 1 for the Opportunity being deleted, floored at 0.</description>
+        <name>formulaN_CountAfterDelete</name>
+        <dataType>Number</dataType>
+        <expression>MAX({!varN_AccountOpportunityCount} - 1, 0)</expression>
+        <scale>0</scale>
+    </formulas>
+    <interviewLabel>Opportunity - BEFORE - Update Account Opportunity Count {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Opportunity - BEFORE - Update Account Opportunity Count</label>
+    <loops>
+        <description>Tallies the count in a variable only. No Get/Create/Update/Delete Records inside this loop.</description>
+        <name>Loop_Account_Opportunities</name>
+        <label>Loop Through Account&apos;s Opportunities</label>
+        <locationX>176</locationX>
+        <locationY>250</locationY>
+        <collectionReference>colAccountOpportunities</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Increment_Account_Count</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Update_Account</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <description>Single bulk-safe query for every Opportunity on the deleted Opportunity&apos;s Account, including the one being deleted. Only Id is retrieved.</description>
+        <name>Get_Account_Opportunities</name>
+        <label>Get Account&apos;s Opportunities</label>
+        <locationX>176</locationX>
+        <locationY>150</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_Account_Opportunities</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>AccountId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.AccountId</elementReference>
+            </value>
+        </filters>
+        <object>Opportunity</object>
+        <outputReference>colAccountOpportunities</outputReference>
+        <queriedFields>Id</queriedFields>
+    </recordLookups>
+    <recordUpdates>
+        <description>Writes the count, less the Opportunity being deleted, to the Account. No fault path: before-delete flows cannot update the deleted Opportunity, so a fault fails the delete.</description>
+        <name>Update_Account</name>
+        <label>Update Account</label>
+        <locationX>176</locationX>
+        <locationY>450</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.AccountId</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Number_of_Opportunities__c</field>
+            <value>
+                <elementReference>formulaN_CountAfterDelete</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Account</object>
+    </recordUpdates>
+    <start>
+        <locationX>50</locationX>
+        <locationY>50</locationY>
+        <connector>
+            <targetReference>Get_Account_Opportunities</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>AccountId</field>
+            <operator>IsNull</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </filters>
+        <object>Opportunity</object>
+        <recordTriggerType>Delete</recordTriggerType>
+        <triggerType>RecordBeforeDelete</triggerType>
+    </start>
+    <status>Draft</status>
+    <variables>
+        <description>Opportunities (Id only) on the Account. Used only to tally the count.</description>
+        <name>colAccountOpportunities</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>Opportunity</objectType>
+    </variables>
+    <variables>
+        <description>Running raw count of Opportunities on the Account, including the one being deleted.</description>
+        <name>varN_AccountOpportunityCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+</Flow>
