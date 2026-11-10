@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Go_Live_Date_Validation</fullName>
+    <active>true</active>
+    <description>Go Live Date should be at least 1 month from Start Date.</description>
+    <errorConditionFormula>Go_Live_Date__c  &lt;  Start_Date__c</errorConditionFormula>
+    <errorDisplayField>Go_Live_Date__c</errorDisplayField>
+    <errorMessage>Go Live Date should be at least 1 month from Start Date.</errorMessage>
+</ValidationRule>

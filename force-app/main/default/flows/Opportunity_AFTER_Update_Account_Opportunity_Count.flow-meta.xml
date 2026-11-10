@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <description>Adds 1 to the new Account&apos;s running Opportunity count.</description>
+        <name>Increment_New_Account_Count</name>
+        <label>Increment New Account Count</label>
+        <locationX>176</locationX>
+        <locationY>950</locationY>
+        <assignmentItems>
+            <assignToReference>varN_NewAccountOpportunityCount</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_New_Account_Opportunities</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <description>Adds 1 to the old Account&apos;s running Opportunity count.</description>
+        <name>Increment_Old_Account_Count</name>
+        <label>Increment Old Account Count</label>
+        <locationX>176</locationX>
+        <locationY>450</locationY>
+        <assignmentItems>
+            <assignToReference>varN_OldAccountOpportunityCount</assignToReference>
+            <operator>Add</operator>
+            <value>
+                <numberValue>1.0</numberValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_Old_Account_Opportunities</targetReference>
+        </connector>
+    </assignments>
+    <decisions>
+        <description>True on create with an Account, or on update when AccountId is populated - that Account&apos;s count needs to be recalculated.</description>
+        <name>Decision_New_Account_Gained_Opportunity</name>
+        <label>Does the Opportunity Have an Account Now?</label>
+        <locationX>50</locationX>
+        <locationY>650</locationY>
+        <defaultConnectorLabel>No - No Current Account</defaultConnectorLabel>
+        <rules>
+            <name>New_Account_Exists</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.AccountId</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_New_Account_Opportunities</targetReference>
+            </connector>
+            <label>Yes - Has Account</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <description>True only on an update where AccountId changed away from a previous, non-null Account - that Account&apos;s count needs to be recalculated.</description>
+        <name>Decision_Old_Account_Lost_Opportunity</name>
+        <label>Did the Opportunity Leave an Account?</label>
+        <locationX>50</locationX>
+        <locationY>150</locationY>
+        <defaultConnector>
+            <targetReference>Decision_New_Account_Gained_Opportunity</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>No - No Prior Account Lost</defaultConnectorLabel>
+        <rules>
+            <name>Old_Account_Lost_Opportunity</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record__Prior.AccountId</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.AccountId</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <elementReference>$Record.AccountId</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Get_Old_Account_Opportunities</targetReference>
+            </connector>
+            <label>Yes - Old Account Lost Opportunity</label>
+        </rules>
+    </decisions>
+    <description>Triggers when an Opportunity is created, or when its AccountId changes (entry criteria on Start: ISNEW() || ISCHANGED(AccountId)). Recalculates the related-Opportunity count on the old Account (if the Opportunity moved off it) and on the new/current Account, writing the total to Account.Number_of_Opportunities__c. On any fault, the error message is appended to Opportunity.Description and the save is not blocked. Companion flow: Opportunity - BEFORE - Update Account Opportunity Count handles the delete side. Undelete is not supported by record-triggered flows.</description>
+    <interviewLabel>Opportunity - AFTER - Update Account Opportunity Count {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Opportunity - AFTER - Update Account Opportunity Count</label>
+    <loops>
+        <description>Tallies the count in a variable only. No Get/Create/Update/Delete Records inside this loop.</description>
+        <name>Loop_New_Account_Opportunities</name>
+        <label>Loop Through New Account&apos;s Opportunities</label>
+        <locationX>176</locationX>
+        <locationY>850</locationY>
+        <collectionReference>colNewAccountOpportunities</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Increment_New_Account_Count</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Update_New_Account</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <loops>
+        <description>Tallies the count in a variable only. No Get/Create/Update/Delete Records inside this loop.</description>
+        <name>Loop_Old_Account_Opportunities</name>
+        <label>Loop Through Old Account&apos;s Opportunities</label>
+        <locationX>176</locationX>
+        <locationY>350</locationY>
+        <collectionReference>colOldAccountOpportunities</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Increment_Old_Account_Count</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>Update_Old_Account</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <description>Single bulk-safe query for every Opportunity on the Opportunity&apos;s current Account. Only Id is retrieved.</description>
+        <name>Get_New_Account_Opportunities</name>
+        <label>Get New Account&apos;s Opportunities</label>
+        <locationX>176</locationX>
+        <locationY>750</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_New_Account_Opportunities</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Update_Opportunity_Description</targetReference>
+        </faultConnector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>AccountId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.AccountId</elementReference>
+            </value>
+        </filters>
+        <object>Opportunity</object>
+        <outputReference>colNewAccountOpportunities</outputReference>
+        <queriedFields>Id</queriedFields>
+    </recordLookups>
+    <recordLookups>
+        <description>Single bulk-safe query for every Opportunity still on the Opportunity&apos;s previous Account. Only Id is retrieved.</description>
+        <name>Get_Old_Account_Opportunities</name>
+        <label>Get Old Account&apos;s Opportunities</label>
+        <locationX>176</locationX>
+        <locationY>250</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_Old_Account_Opportunities</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Update_Opportunity_Description</targetReference>
+        </faultConnector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>AccountId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record__Prior.AccountId</elementReference>
+            </value>
+        </filters>
+        <object>Opportunity</object>
+        <outputReference>colOldAccountOpportunities</outputReference>
+        <queriedFields>Id</queriedFields>
+    </recordLookups>
+    <recordUpdates>
+        <description>Writes the recalculated total to the Opportunity&apos;s current Account.</description>
+        <name>Update_New_Account</name>
+        <label>Update New Account</label>
+        <locationX>176</locationX>
+        <locationY>1050</locationY>
+        <faultConnector>
+            <targetReference>Update_Opportunity_Description</targetReference>
+        </faultConnector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.AccountId</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Number_of_Opportunities__c</field>
+            <value>
+                <elementReference>varN_NewAccountOpportunityCount</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Account</object>
+    </recordUpdates>
+    <recordUpdates>
+        <description>Writes the recalculated total to the Account the Opportunity just left.</description>
+        <name>Update_Old_Account</name>
+        <label>Update Old Account</label>
+        <locationX>176</locationX>
+        <locationY>550</locationY>
+        <connector>
+            <targetReference>Decision_New_Account_Gained_Opportunity</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Update_Opportunity_Description</targetReference>
+        </faultConnector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record__Prior.AccountId</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Number_of_Opportunities__c</field>
+            <value>
+                <elementReference>varN_OldAccountOpportunityCount</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Account</object>
+    </recordUpdates>
+    <recordUpdates>
+        <description>Shared fault handler. Appends the flow fault message to the triggering Opportunity&apos;s Description. Does not block the save. Has no fault path of its own.</description>
+        <name>Update_Opportunity_Description</name>
+        <label>Update Opportunity Description</label>
+        <locationX>600</locationX>
+        <locationY>650</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Description</field>
+            <value>
+                <elementReference>txtFaultMessage</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Opportunity</object>
+    </recordUpdates>
+    <start>
+        <locationX>50</locationX>
+        <locationY>50</locationY>
+        <connector>
+            <targetReference>Decision_Old_Account_Lost_Opportunity</targetReference>
+        </connector>
+        <filterFormula>ISNEW() || ISCHANGED({!$Record.AccountId})</filterFormula>
+        <object>Opportunity</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Draft</status>
+    <textTemplates>
+        <description>Existing Opportunity Description with the flow fault message appended, so prior description text is preserved.</description>
+        <name>txtFaultMessage</name>
+        <isViewedAsPlainText>true</isViewedAsPlainText>
+        <text>{!$Record.Description}
+
+[Account Opportunity Count flow error] {!$Flow.FaultMessage}</text>
+    </textTemplates>
+    <variables>
+        <description>Opportunities (Id only) on the current Account. Used only to tally the count.</description>
+        <name>colNewAccountOpportunities</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>Opportunity</objectType>
+    </variables>
+    <variables>
+        <description>Opportunities (Id only) still on the previous Account. Used only to tally the count.</description>
+        <name>colOldAccountOpportunities</name>
+        <dataType>SObject</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <objectType>Opportunity</objectType>
+    </variables>
+    <variables>
+        <description>Running count of Opportunities on the current Account.</description>
+        <name>varN_NewAccountOpportunityCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+    <variables>
+        <description>Running count of Opportunities remaining on the previous Account.</description>
+        <name>varN_OldAccountOpportunityCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+</Flow>
